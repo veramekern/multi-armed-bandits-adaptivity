@@ -1,3 +1,3 @@
 # multi-armed-bandits-adaptivity
 
-TODO
+tryout r pull
