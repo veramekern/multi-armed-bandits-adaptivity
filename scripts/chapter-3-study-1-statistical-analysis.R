@@ -1,5 +1,9 @@
 # rm(list = ls())
 # rm(points.dists)
+#  "psych", "car", "MASS", "nlme",  
+# "Hmisc", "stringr", "multcomp", "gridExtra", "doBy", 
+# "gridExtra", "reshape2", "tibble", "DescTools", 
+# "ggridges", "NCmisc"
 
 # ---------- INIT ---------- 
 ipak <- function(pkg){
@@ -8,12 +12,8 @@ ipak <- function(pkg){
     install.packages(new.pkg, dependencies = T)
   sapply(pkg, require, character.only = T)
 }
-packages <- c("dplyr", "psych", "ggplot2", "car", "MASS", "nlme", "tidyr", 
-              "Hmisc", "stringr", "ez", "multcomp", "gridExtra", "doBy", "FSA", 
-              "randtests", "gridExtra", "reshape2", "tibble", "DescTools", 
-              "ggridges", "hrbrthemes", "plotly", "ggthemes")
+packages <- c("dplyr", "plotly", "ggplot2", "ggthemes", "hrbrthemes", "tidyr")
 ipak(packages)
-warnings()
 
 # ---------- LOAD DATA ---------- 
 # TO LOAD DATA FROM RAW DATA FILE
