@@ -2,7 +2,7 @@
 # rm(points.dists)
 #  "psych", "car", "MASS", "nlme",  
 # "Hmisc", "stringr", "multcomp", "gridExtra", "doBy", 
-# "gridExtra", "reshape2", "tibble", "DescTools", 
+# "reshape2", "tibble", "DescTools", 
 # "ggridges", "NCmisc"
 
 # ---------- INIT ---------- 
@@ -12,7 +12,7 @@ ipak <- function(pkg){
     install.packages(new.pkg, dependencies = T)
   sapply(pkg, require, character.only = T)
 }
-packages <- c("dplyr", "plotly", "ggplot2", "ggthemes", "hrbrthemes", "tidyr")
+packages <- c("dplyr", "plotly", "ggplot2", "gridExtra", "tidyr")
 ipak(packages)
 
 # ---------- LOAD DATA ---------- 
@@ -36,19 +36,14 @@ ipak(packages)
 # dat <- left_join(dat, exclude, by="id")
 # dat <- subset(dat, exclude==0)
 # length(unique(dat$id)) # down to N = 64
-# 
-# write.table(dat, file=paste0("../../../0003-chapter-3-adaptivity-bandit-tasks/",
-#             "research/03-data/chapter-3-full-data-study-1.csv"),
+# dat <- dat[complete.cases(dat),] # remove practice trials
+# dat <- subset(dat, select=-exclude) # remove exclude variable
+# write.table(dat, file=paste0("../../../03-data/chapter-3-study-1-full-data.csv"),
 #             row.names=F, col.names = T, sep=";", dec=".")
 
-# TO LOAD FROM CLEANED FILE (STILL INCLUDES PRACTICE TRIALS, 
-# EXCLUDES PARTICIPANTS THAT SHOULD BE EXCLUDED)
-dat <- read.csv(file=paste0("../../../0003-chapter-3-adaptivity-bandit-tasks/", 
-                            "research/03-data/chapter-3-full-data-study-1.csv"),
+# TO LOAD FROM CLEANED FILE (EXCLUDED SOME PARTICIPANTS)
+dat <- read.csv(file=paste0("../../../03-data/chapter-3-study-1-full-data.csv"),
                 sep=";", dec=".")
-
-dat <- dat[complete.cases(dat),] # remove practice trials
-dat <- subset(dat, select=-exclude) # remove exclude variable
 
 # ---------- CALCULATE VARIABLES FOR BEHAVIORAL ANALYSES ---------- 
 # calculate clusters
@@ -118,91 +113,82 @@ long.payoff.dist <- payoff.dist %>% gather(arm, points, arm1:arm4)
 dist.a <- filter(long.payoff.dist, version == 'a')
 dist.b <- filter(long.payoff.dist, version == 'b')
 
-# histograms, violin plots
+# # plot switches per participant to pdf
+# # split data per id
+# split.dat <- split(dat, dat$id)
+# names.dat <- colnames(dat)
+# 
+# #prepare pdf
+# pdf("switches.pdf") 
+# 
+# #plot to pdf
+# for (i in 1:length(unique(dat$id))) {
+#   temp.dat <- data.frame(split.dat[i])
+#   names(temp.dat) <- names.dat
+#   if (temp.dat$version[1]=="a") {
+#     print(ggplot(data=dist.a,
+#                  aes(x=trial, y=points, colour=arm)) + 
+#             geom_line(size=0.1) + ylim(0, 100) +
+#             geom_vline(colour="gray", 
+#                        xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
+#             labs(y="Payoff", x="Trial", fill="",
+#                  title=paste0("Participant ", temp.dat[1,2])) +
+#             theme_calc() + 
+#             scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
+#     )
+#   }
+#   else {
+#     print(ggplot(data=dist.b,
+#                  aes(x=trial, y=points, colour=arm)) + 
+#             geom_line(size=0.1) + ylim(0, 100) +
+#             geom_vline(colour="gray", 
+#                        xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
+#             labs(y="Payoff", x="Trial", fill="",
+#                  title=paste0("Participant ", temp.dat[1,2])) +
+#             theme_calc() + 
+#             scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
+#     )
+#   }
+# }
+# dev.off()
+
+### violin plots ###
 
 # number of switches
-switch.hist <- dat.collect %>%
-  ggplot(aes(x=n.switches, fill=version)) +
-  geom_histogram(color="#e9ecef", alpha=0.5, position = 'identity', bins = 20) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum() +
-  labs(fill="")
-ggplotly(switch.hist)
-
-switch.violin <-  dat.collect %>%
+switch.violin <- dat.collect %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum()
-ggplotly(switch.violin)
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal()
+# ggplotly(switch.violin)
 
 # number of clusters
-clust.hist <- dat.collect %>%
-  ggplot( aes(x=n.clusters, fill=version)) +
-  geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity', bins = 20) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum() +
-  labs(fill="")
-ggplotly(clust.hist)
-
 clust.violin <-  dat.collect %>%
   ggplot(aes(x=version, y=n.clusters, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum()
-ggplotly(clust.violin)
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal()
+# ggplotly(clust.violin)
 
 # performance in total payoff
-perf.hist <- dat.collect %>%
-  ggplot( aes(x=performance, fill=version)) +
-  geom_histogram( color="#e9ecef", alpha=0.6, position = 'identity', bins = 20) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum() +
-  labs(fill="")
-ggplotly(perf.hist)
-
 perf.violin <-  dat.collect %>%
   ggplot(aes(x=version, y=performance, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
-  scale_fill_manual(values=c("#e24068", "#fa6c0c")) +
-  theme_ipsum()
-ggplotly(perf.violin)
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal()
+# ggplotly(perf.violin)
 
-# plot switches per participant to pdf
-# split data per id
-split.dat <- split(dat, dat$id)
-names.dat <- colnames(dat)
+# performance in best arm chosen
+perf.arm.violin <-  dat.collect %>%
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal()
+# ggplotly(perf.arm.violin)
 
-#prepare pdf
-pdf("switches.pdf") 
+grid.arrange(switch.violin, clust.violin, perf.violin, perf.arm.violin, ncol=2)
 
-#plot to pdf
-for (i in 1:length(unique(dat$id))) {
-  temp.dat <- data.frame(split.dat[i])
-  names(temp.dat) <- names.dat
-  if (temp.dat$version[1]=="a") {
-    print(ggplot(data=dist.a,
-                 aes(x=trial, y=points, colour=arm)) + 
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="gray", 
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            labs(y="Payoff", x="Trial", fill="",
-                 title=paste0("Participant ", temp.dat[1,2])) +
-            theme_calc() + 
-            scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
-    )
-  }
-  else {
-    print(ggplot(data=dist.b,
-                 aes(x=trial, y=points, colour=arm)) + 
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="gray", 
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            labs(y="Payoff", x="Trial", fill="",
-                 title=paste0("Participant ", temp.dat[1,2])) +
-            theme_calc() + 
-            scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
-    )
-  }
-}
-dev.off()
+# ---------- ANALYSES ---------- 
+
+mod1 <- lm(p.correct.arm ~ n.switches, data=dat.collect)
+cooksd <- cooks.distance(mod1)
