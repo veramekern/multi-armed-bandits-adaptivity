@@ -1,4 +1,4 @@
-# rm(list = ls())
+rm(list = ls())
 # rm(points.dists)
 #  "psych", "car", "MASS", "nlme",  
 # "Hmisc", "stringr", "multcomp", "gridExtra", "doBy", 
@@ -13,7 +13,7 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = T)
 }
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
-              "ggthemes")
+              "ggthemes", "psych")
 ipak(packages)
 
 # ---------- LOAD DATA ---------- 
@@ -77,8 +77,9 @@ dat <- dat %>%
 # calculate cluster starts
 dat <- dat %>%
   group_by(id) %>%
-  mutate(cluster.start = ifelse(cluster == 1 & lag(cluster) == 0, 1, 0)) %>%
-  mutate(cluster.start = ifelse(cluster == 1 & is.na(lag(cluster)), 1, cluster.start))
+  mutate(cluster.start = ifelse(cluster == 1 & lag(choice) != choice, 1, 0)) %>%
+  mutate(cluster.start = ifelse(cluster == 1 & is.na(lag(cluster)), 1, 
+                                cluster.start))
 
 # calculate switches
 dat <- dat %>%
@@ -115,6 +116,40 @@ dat.collect <- dat %>%
             rt.cluster = sum(rt * cluster)/cluster.sum, 
             rt.start.cluster = sum(rt * cluster.start)/n.clusters)
 
+dat.collect.150 <- dat %>%
+  filter(trial > 50) %>%
+  group_by(id, version) %>%
+  summarise(n.switches = sum(switch), 
+            n.expl.switches = sum(expl.switch),
+            cluster.sum = sum(cluster), 
+            n.clusters = sum(cluster.start), 
+            cluster.size = cluster.sum/n.clusters, 
+            performance = sum(points), 
+            n.correct.arm = sum(best.chosen), 
+            p.correct.arm = n.correct.arm/150, 
+            mean.rt = mean(rt),
+            rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
+            rt.switch = sum(rt * switch)/n.switches, 
+            rt.cluster = sum(rt * cluster)/cluster.sum, 
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+
+dat.collect.100 <- dat %>%
+  filter(trial > 100) %>%
+  group_by(id, version) %>%
+  summarise(n.switches = sum(switch), 
+            n.expl.switches = sum(expl.switch),
+            cluster.sum = sum(cluster), 
+            n.clusters = sum(cluster.start), 
+            cluster.size = cluster.sum/n.clusters, 
+            performance = sum(points), 
+            n.correct.arm = sum(best.chosen), 
+            p.correct.arm = n.correct.arm/100, 
+            mean.rt = mean(rt),
+            rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
+            rt.switch = sum(rt * switch)/n.switches, 
+            rt.cluster = sum(rt * cluster)/cluster.sum, 
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+
 # calculate how many times arm was best arm per version
 table.best <- dat %>%
   group_by(version, trial) %>%
@@ -123,6 +158,7 @@ split.table.best <- split(x=table.best, f=table.best$version)
 
 dist.best.a <- c(79, 0, 70, 51)
 dist.best.b <- c(47, 120, 25, 8)
+
 rm(table.best, split.table.best)
 
 # show distribution choice pp
@@ -177,10 +213,7 @@ dat.dist.arms <- full_join(dat.dist.arms, dat.expected, by="id")
 rm(dat.expected, arm, dist.best.a, dist.best.b)
 
 # add random expected distribution pp
-r.1 <- rep(50, length(unique(dat$id)))
-r.2 <- rep(50, length(unique(dat$id)))
-r.3 <- rep(50, length(unique(dat$id)))
-r.4 <- rep(50, length(unique(dat$id)))
+r.1 <- r.2 <- r.3 <- r.4 <- rep(50, length(unique(dat$id)))
 dat.unif.expected <- data.frame(unif.1=r.1, unif.2=r.2, unif.3=r.3, unif.4=r.4)
 dat.dist.arms <- cbind(dat.dist.arms, dat.unif.expected)
 dat.collect <- left_join(dat.collect, dat.dist.arms, by="id")
@@ -224,11 +257,23 @@ payoff.dist <- dat %>%
             arm3 = mean(arm3) + mean(noise), 
             arm4 = mean(arm4) + mean(noise))
 
+payoff.dist.noise.sep <- dat %>%
+  group_by(version, trial) %>%
+  summarise(arm1 = mean(arm1), 
+            arm2 = mean(arm2), 
+            arm3 = mean(arm3), 
+            arm4 = mean(arm4), 
+            noise = first(noise))
+
 expected.value <- payoff.dist %>%
   rowwise() %>%
-  mutate(mean = mean(c(arm1:arm4))) %>%
+  mutate(mean = mean(unlist(c(arm1, arm2, arm3, arm4))),
+         minimum = min(unlist(c(arm1, arm2, arm3, arm4))), 
+         maximum = max(unlist(c(arm1, arm2, arm3, arm4)))) %>%
   group_by(version) %>%
-  summarise(expected.value = sum(mean))
+  summarise(expected.value = sum(mean), 
+            minimum.value = sum(minimum), 
+            maximum.value = sum(maximum))
 
 # make long distribution table for graphs
 long.payoff.dist <- payoff.dist %>% gather(arm, points, arm1:arm4)
@@ -321,8 +366,21 @@ dist.b <- filter(long.payoff.dist, version == 'b')
 
 
 # ---------- DESCRIPTIVES ---------- 
+### descriptive statistics of the payoff distributions ###
+payoff.dist.noise.sep %>%
+  group_by(version) %>%
+  summarise(sd.arm1 = sd(arm1), 
+            sd.arm2 = sd(arm2), 
+            sd.arm3 = sd(arm3), 
+            sd.arm4 = sd(arm4), 
+            sd.noise = sd(noise), 
+            mssd.arm1 = mssd(arm1),
+            mssd.arm2 = mssd(arm2),
+            mssd.arm3 = mssd(arm3),
+            mssd.arm4 = mssd(arm4))
 
-### descriptive plots ###
+
+### descriptive plots full data ###
 ### violin plots ###
 
 # number of switches
@@ -330,7 +388,8 @@ switch.violin <- dat.collect %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position="none") 
 # ggplotly(switch.violin)
 
 # number of clusters
@@ -338,7 +397,8 @@ clust.violin <-  dat.collect %>%
   ggplot(aes(x=version, y=n.clusters, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position="none") 
 # ggplotly(clust.violin)
 
 # performance in total payoff
@@ -346,7 +406,8 @@ perf.violin <-  dat.collect %>%
   ggplot(aes(x=version, y=performance, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position="none") 
 # ggplotly(perf.violin)
 
 # performance in best arm chosen
@@ -354,38 +415,93 @@ perf.arm.violin <-  dat.collect %>%
   ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() 
+# ggplotly(perf.arm.violin)
+
+grid.arrange(switch.violin, clust.violin, perf.violin, perf.arm.violin, ncol=4)
+
+### descriptive plots data minus first 50 trials ###
+### violin plots ###
+
+# number of switches
+switch.violin.150 <- dat.collect.150 %>%
+  ggplot(aes(x=version, y=n.switches, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(switch.violin)
+
+# number of clusters
+clust.violin.150 <-  dat.collect.150 %>%
+  ggplot(aes(x=version, y=n.clusters, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(clust.violin)
+
+# performance in total payoff
+perf.violin.150 <-  dat.collect.150 %>%
+  ggplot(aes(x=version, y=performance, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(perf.violin)
+
+# performance in best arm chosen
+perf.arm.violin.150 <-  dat.collect.150 %>%
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
   theme_minimal()
 # ggplotly(perf.arm.violin)
 
-grid.arrange(switch.violin, clust.violin, perf.violin, perf.arm.violin, ncol=2)
+grid.arrange(switch.violin.150, clust.violin.150, perf.violin.150, 
+             perf.arm.violin.150, ncol=4)
 
+### descriptive plots data minus first 100 trials ###
+### violin plots ###
 
-names(dat.collect)
+switch.violin.100 <- dat.collect.100 %>%
+  ggplot(aes(x=version, y=n.switches, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(switch.violin)
 
-dat.collect %>%
-  ggplot( aes(x=p_val)) +
-  geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
-  facet_wrap(~ version)
+# number of clusters
+clust.violin.100 <-  dat.collect.100 %>%
+  ggplot(aes(x=version, y=n.clusters, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(clust.violin)
 
-dat.collect %>%
-  ggplot( aes(x=p_val_random)) +
-  geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
-  facet_wrap(~ version)
+# performance in total payoff
+perf.violin.100 <-  dat.collect.100 %>%
+  ggplot(aes(x=version, y=performance, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal() +
+  theme(legend.position="none") 
+# ggplotly(perf.violin)
 
+# performance in best arm chosen
+perf.arm.violin.100 <-  dat.collect.100 %>%
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  scale_fill_manual(values=c("#0596F7", "#F74A05")) +
+  theme_minimal()
+# ggplotly(perf.arm.violin)
 
-
-# there is a huge difference between the two versions
-# the relationship between some variables are much more logical in version a
-# this might be due to the fact that there is a much more uniform distribution
-# of which arm is the best choice, even though one arm is never the best choice
-# in version b the best arm is arm 2 most of the time, over half of the trials
-# apparently, though, people have a tendency to keep switching machines as the
-# chisq values indicate that the distribution of their choices does not match 
-# the distribution of the best arm, at all. 
-# especially compared to version acet_wrap(~ version)
+grid.arrange(switch.violin.100, clust.violin.100, perf.violin.100, 
+             perf.arm.violin.100, ncol=4)
 
 # ---------- ANALYSES ---------- 
-
 
 mod1 <- lm(p.correct.arm ~ n.switches, data=dat.collect)
 cooksd <- cooks.distance(mod1)
