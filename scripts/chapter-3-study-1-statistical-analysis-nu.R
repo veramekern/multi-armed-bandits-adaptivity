@@ -235,7 +235,6 @@ chisq <- dat.collect %>%
                                         expected.1:expected.4))$p.value
   )
 
-
 # perform chi sq per pp to check how much they deviate from 
 # uniform distribution
 chisq <- chisq %>%
@@ -379,10 +378,27 @@ payoff.dist.noise.sep %>%
             mssd.arm3 = mssd(arm3),
             mssd.arm4 = mssd(arm4))
 
+# number of participants in each version
+dat.collect %>%
+  group_by(version) %>%
+  summarise(n = length(unique(id)))
 
 ### descriptive plots full data ###
-### violin plots ###
+# line plots payoff distributions
+plot.a <- ggplot(data=dist.a, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=1) + ylim(0, 100) +
+  labs(y="Payoff", x="Trial", fill="") +
+  theme_calc() +
+  scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
 
+plot.b <- ggplot(data=dist.b, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=1) + ylim(0, 100) +
+  labs(y="Payoff", x="Trial", fill="") +
+  theme_calc() +
+  scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
+
+
+### violin plots ###
 # number of switches
 switch.violin <- dat.collect %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
@@ -394,7 +410,7 @@ switch.violin <- dat.collect %>%
 
 # number of clusters
 clust.violin <-  dat.collect %>%
-  ggplot(aes(x=version, y=n.clusters, fill=version)) +
+  ggplot(aes(x=version, y=cluster.size, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
   theme_minimal() +
@@ -434,7 +450,7 @@ switch.violin.150 <- dat.collect.150 %>%
 
 # number of clusters
 clust.violin.150 <-  dat.collect.150 %>%
-  ggplot(aes(x=version, y=n.clusters, fill=version)) +
+  ggplot(aes(x=version, y=cluster.size, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
   theme_minimal() +
@@ -474,7 +490,7 @@ switch.violin.100 <- dat.collect.100 %>%
 
 # number of clusters
 clust.violin.100 <-  dat.collect.100 %>%
-  ggplot(aes(x=version, y=n.clusters, fill=version)) +
+  ggplot(aes(x=version, y=cluster.size, fill=version)) +
   geom_violin(draw_quantiles=T, alpha=0.5) +
   scale_fill_manual(values=c("#0596F7", "#F74A05")) +
   theme_minimal() +
