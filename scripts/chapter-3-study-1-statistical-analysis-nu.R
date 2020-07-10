@@ -13,8 +13,23 @@ ipak <- function(pkg){
   sapply(pkg, require, character.only = T)
 }
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
-              "ggthemes", "psych")
+              "ggthemes", "psych", "biotools", "MASS", "lattice", "GGally", 
+              "extrafont", "car")
 ipak(packages)
+font_import()
+loadfonts(device = "win")
+windowsFonts()
+
+# set default ggplot title to be adjusted to center
+theme_update(plot.title=element_text(hjust = 0.5, size=12, face="plain", 
+                                     family="Gill Sans Nova Light"),
+             axis.title=element_text(face="plain", size=10,
+                                     family="Gill Sans Nova Light"), 
+             strip.background=element_rect(fill="#f9f9f9", ),
+             axis.text=element_text(color="#bbbbbb"), 
+             panel.background=element_rect(fill="#ffffff"), 
+             panel.grid.minor=element_line(color="#dddddd"))
+
 
 # ---------- LOAD DATA ---------- 
 # # TO LOAD DATA FROM RAW DATA FILE
@@ -149,6 +164,8 @@ dat.collect.100 <- dat %>%
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
             rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+dat.collect.100$cluster.size <- ifelse(dat.collect.100$cluster.size==Inf, 100, 
+                                       dat.collect.100$cluster.size)
 
 # calculate how many times arm was best arm per version
 table.best <- dat %>%
@@ -518,13 +535,257 @@ grid.arrange(switch.violin.100, clust.violin.100, perf.violin.100,
              perf.arm.violin.100, ncol=4)
 
 # ---------- ANALYSES ---------- 
+# mean differences between versions
 
-mod1 <- lm(p.correct.arm ~ n.switches, data=dat.collect)
-cooksd <- cooks.distance(mod1)
+names(dat.collect)
 
-sample_size <- nrow(dat.collect)
-plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")
-abline(h = 4/sample_size, col="red") 
-text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4/sample_size, 
-                                                   names(cooksd),""), col="red")
+# MANOVA
+# assumptions
+# normally distributed errors
+n.err.man <- lm(data=dat.collect, p.correct.arm ~ n.switches + cluster.size)
+errors <- data.frame(residuals(n.err.man))
+names(errors)
+n.err.man <- ggplot(errors, aes(x=residuals.n.err.man.)) + 
+  geom_histogram()
+rm(n.err.man, errors)
+
+# homogeneity of var-covar matrices
+# largest group != 1.5 times or more bigger than the smallest group: robust
+
+# MANOVA
+study.1.manova <- manova(cbind(n.switches, cluster.size, p.correct.arm) ~version, 
+                      data=dat.collect)
+
+summary(study.1.manova)
+
+# linear discriminant analysis follow up MANOVA
+dat.lda <- dplyr::select(dat.collect, version, n.switches, cluster.size, p.correct.arm)
+ggpairs(dat.lda, aes(colour=version, alpha=0.4))
+
+study.1.lda <- MASS::lda(version ~ n.switches + cluster.size + p.correct.arm, 
+                         data=dat.lda) 
+out.study.1.lda <- predict(study.1.lda)
+plot(study.1.lda)
+table(dat.lda$version == out.study.1.lda$class)
+
+# univariate ANOVAs follow up MANOVA
+summary.aov(study.1.manova)
+
+# logistic regression to classify
+dat.logit <- dat.lda
+dat.logit$version <- recode(dat.logit$version, a=0, b=1)
+study.1.logit <- glm(version ~ n.switches + cluster.size + p.correct.arm,
+                  data=dat.logit, family=binomial())
+summary(study.1.logit)
+pred <- predict(study.1.logit)
+probs <- exp(pred)/(1+exp(pred))
+probs <- ifelse(probs <.50, 0, 1)
+table(probs==dat.logit$version)
+
+# regression
+dat.collect.a <- filter(dat.collect, version=="a")
+dat.collect.b <- filter(dat.collect, version=="b")
+dat.collect.a.150 <- filter(dat.collect.150, version=="a")
+dat.collect.b.150 <- filter(dat.collect.150, version=="b")
+dat.collect.a.100 <- filter(dat.collect.100, version=="a")
+dat.collect.b.100 <- filter(dat.collect.100, version=="b")
+
+# plots n.switches
+plot.study.1.lr <- ggplot(dat.collect, aes(n.switches, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="All Trials") + 
+  xlab("number of switches") + 
+  ylab("proportion correct arm")
+
+plot.study.1.lr.150 <- ggplot(dat.collect.150, aes(n.switches, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="Last 150 Trials") + 
+  xlab("number of switches") + 
+  ylab("proportion correct arm") 
+
+plot.study.1.lr.100 <- ggplot(dat.collect.100, aes(n.switches, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="Last 100 Trials") + 
+  xlab("number of switches") + 
+  ylab("proportion correct arm")
+# + geom_text(x = 25, y = 300, label = lm_eqn(df), parse = TRUE)
+
+grid.arrange(plot.study.1.lr, plot.study.1.lr.150, plot.study.1.lr.100)
+
+# plots cluster size
+plot.study.1.csize <- ggplot(dat.collect, aes(cluster.size, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="All Trials") + 
+  xlab("average cluster size") + 
+  ylab("proportion correct arm")
+
+plot.study.1.csize.150 <- ggplot(dat.collect.150, aes(cluster.size, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="Last 150 Trials") + 
+  xlab("average cluster size") + 
+  ylab("proportion correct arm") 
+
+plot.study.1.csize.100 <- ggplot(dat.collect.100, aes(cluster.size, p.correct.arm)) + 
+  geom_point(color="#797979") + 
+  geom_smooth(method="lm", color="#1fc5c3", fill="#3b8c84", alpha=0.2, size=0.5) + 
+  facet_wrap(~version) + 
+  ggtitle(label="Last 100 Trials") + 
+  xlab("average cluster size") + 
+  ylab("proportion correct arm")
+# + geom_text(x = 25, y = 300, label = lm_eqn(df), parse = TRUE)
+
+grid.arrange(plot.study.1.csize, plot.study.1.csize.150, plot.study.1.csize.100)
+
+
+# REGRESSION VERSION A
+# ---
+# regression assumptions
+study.1.glm.a <- glm(p.correct.arm ~ n.switches + cluster.size, data=dat.collect.a)
+
+# homoscedasticity
+pred <- scale(predict(study.1.glm.a))
+resid <- scale(residuals(study.1.glm.a))
+plot.tibble.a <- tibble(pred, resid)
+
+ggplot(plot.tibble.a, aes(pred, resid)) +
+  geom_point() + 
+  geom_hline(yintercept = 0)
+
+# outliers
+glm.a.cooks <- tibble(dat.collect.a$id, cooks.distance(study.1.glm.a))
+colnames(glm.a.cooks) <- c("id", "cooksd")
+ggplot(glm.a.cooks, aes(id, cooksd)) +
+  geom_point() + 
+  geom_segment(aes(x=id, xend=id, y=cooksd, yend=cooksd)) +
+  geom_text(aes(label=id), nudge_y=0.1, size=2) +
+  geom_hline(yintercept=1, color="red") + 
+  geom_hline(yintercept=4/(length(dat.collect$id)-3), color="blue")
+
+# multicollinearity
+vif(study.1.glm.a)
+1/vif(study.1.glm.a) # tol
+
+# normally distributed errors
+ggplot(plot.tibble.a, aes(x=resid)) + 
+  geom_density(fill="#3b8c84", color="#ffffff", alpha=0.5)
+
+# regression summary
+summary(study.1.glm.a)
+
+# REGRESSION VERSION A MINUS 104
+# ---
+# regression assumptions
+dat.collect.a.ro <- filter(dat.collect.a, id!=104)
+study.1.glm.a.ro <- glm(p.correct.arm ~ n.switches + cluster.size, data=dat.collect.a.ro)
+
+# homoscedasticity
+pred.ro <- scale(predict(study.1.glm.a))
+resid.ro <- scale(residuals(study.1.glm.a))
+plot.tibble.a.ro <- tibble(pred.ro, resid.ro)
+
+ggplot(plot.tibble.a.ro, aes(pred.ro, resid.ro)) +
+  geom_point() + 
+  geom_hline(yintercept = 0)
+
+# outliers
+glm.a.cooks.ro <- tibble(dat.collect.a.ro$id, cooks.distance(study.1.glm.a.ro))
+colnames(glm.a.cooks.ro) <- c("id", "cooksd")
+ggplot(glm.a.cooks.ro, aes(id, cooksd)) +
+  geom_point() + 
+  geom_segment(aes(x=id, xend=id, y=cooksd, yend=cooksd)) +
+  geom_text(aes(label=id), nudge_y=0.1, size=2) +
+  geom_hline(yintercept=1, color="red") + 
+  geom_hline(yintercept=4/(length(dat.collect$id)-3), color="blue")
+
+# multicollinearity
+vif(study.1.glm.a.ro)
+1/vif(study.1.glm.a.ro) # tol
+
+# normally distributed errors
+ggplot(plot.tibble.a.ro, aes(x=resid.ro)) + 
+  geom_density(fill="#3b8c84", color="#ffffff", alpha=0.5)
+
+# regression summary
+summary(study.1.glm.a.ro)
+
+# REGRESSION VERSION B
+# ---
+# regression assumptions
+study.1.glm.b <- glm(p.correct.arm ~ n.switches + cluster.size, data=dat.collect.b)
+
+# homoscedasticity - ok 
+pred <- scale(predict(study.1.glm.b))
+resid <- scale(residuals(study.1.glm.b))
+plot.tibble.b <- tibble(pred, resid)
+
+ggplot(plot.tibble.b, aes(pred, resid)) +
+  geom_point() + 
+  geom_hline(yintercept = 0)
+
+# outliers - bad
+glm.b.cooks <- tibble(dat.collect.b$id, cooks.distance(study.1.glm.b))
+colnames(glm.b.cooks) <- c("id", "cooksd")
+ggplot(glm.b.cooks, aes(id, cooksd)) +
+  geom_point() + 
+  geom_segment(aes(x=id, xend=id, y=cooksd, yend=cooksd)) +
+  geom_text(aes(label=id), nudge_y=0.1, size=2) +
+  geom_hline(yintercept=1, color="red") + 
+  geom_hline(yintercept=4/(length(dat.collect$id)-3), color="blue")
+
+# multicollinearity -good
+vif(study.1.glm.b)
+1/vif(study.1.glm.b) # tol
+
+# normally distributed errors - meh
+ggplot(plot.tibble.b, aes(x=resid)) + 
+  geom_density(fill="#3b8c84", color="#ffffff", alpha=0.5)
+
+# regression summary
+summary(study.1.glm.b)
+
+# REGRESSION VERSION A MINUS 112
+# ---
+# regression assumptions
+dat.collect.b.ro <- filter(dat.collect.b, id!=112 & id!=14)
+study.1.glm.b.ro <- glm(p.correct.arm ~ n.switches + cluster.size, data=dat.collect.b.ro)
+
+# homoscedasticity
+pred.ro <- scale(predict(study.1.glm.b))
+resid.ro <- scale(residuals(study.1.glm.b))
+plot.tibble.b.ro <- tibble(pred.ro, resid.ro)
+
+ggplot(plot.tibble.b.ro, aes(pred.ro, resid.ro)) +
+  geom_point() + 
+  geom_hline(yintercept = 0)
+
+# outliers
+glm.b.cooks.ro <- tibble(dat.collect.b.ro$id, cooks.distance(study.1.glm.b.ro))
+colnames(glm.b.cooks.ro) <- c("id", "cooksd")
+ggplot(glm.b.cooks.ro, aes(id, cooksd)) +
+  geom_point() + 
+  geom_segment(aes(x=id, xend=id, y=cooksd, yend=cooksd)) +
+  geom_text(aes(label=id), nudge_y=0.1, size=2) +
+  geom_hline(yintercept=1, color="red") + 
+  geom_hline(yintercept=4/(length(dat.collect$id)-3), color="blue")
+
+# multicollinearity
+vif(study.1.glm.b.ro)
+1/vif(study.1.glm.b.ro) # tol
+
+# normally distributed errors
+ggplot(plot.tibble.b.ro, aes(x=resid.ro)) + 
+  geom_histogram(fill="#3b8c84", color="#ffffff")
+
+# regression summary
+summary(study.1.glm.b.ro)
 
