@@ -1,12 +1,13 @@
 # rm(list = ls())
 # rm(points.dists)
 
-# coolors
-# #797979 silver gray
-# #1fc5c3 blue green
-# #3b8c84 grey green
-# #ff101f red
-# #edd83d grey yellow
+# colors
+#  #797979   silver gray   base color
+#  #1fc5c3   blue green    group color
+#  #3b8c84   grey green    group color
+#  #ff101f   red           group color
+#  #edd83d   grey yellow   group color
+#  #FFC2B4   orange pink   highlighter
 
 # ---------- INIT ---------- 
 
@@ -18,27 +19,38 @@ ipak <- function(pkg){
 }
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
               "ggthemes", "psych", "biotools", "MASS", "lattice", "GGally", 
-              "extrafont", "car")
+              "extrafont", "car", "Rfit")
 ipak(packages)
 font_import()
 loadfonts(device = "win")
 windowsFonts()
 
 # set default ggplot title to be adjusted to center
-theme_update(plot.title=element_text(hjust = 0.5, size=12, face="plain", 
-                                     family="Gill Sans Nova Light"),
-             plot.subtitle=element_text(hjust=0.5, size=10, face="plain", 
-                                              family="Gill Sans Nova Light"),
-             axis.title=element_text(face="plain", size=10,
-                                     family="Gill Sans Nova Light"), 
-             strip.background=element_rect(fill="#f9f9f9"),
-             axis.text=element_text(color="#bbbbbb"), 
-             legend.text=element_text(size=10, face="plain", 
-                                      family="Gill Sans Nova Light"),
-             panel.background=element_rect(fill="#ffffff"), 
-             panel.grid.minor=element_line(color="#dddddd"))
+gill.sans <- theme_update(plot.title=
+                            element_text(hjust = 0.5, vjust=3, size=14, 
+                                         family="Gill Sans Nova"),
+                          plot.subtitle=
+                            element_text(hjust=0.5, vjust=3, size=12, 
+                                         family="Gill Sans Nova Light"),
+                          plot.caption=
+                            element_text(hjust=0, size=12, color="#bbbbbb",
+                                         family="Gill Sans Nova Light", vjust=-1), 
+                          axis.title=element_text(face="plain", size=12,
+                                                  family="Gill Sans Nova Light"), 
+                          axis.title.x=element_text(vjust=0),
+                          strip.background=element_rect(fill="#f9f9f9"),
+                          axis.text=element_text(color="#bbbbbb"), 
+                          legend.text=
+                            element_text(size=12, family="Gill Sans Nova Light"),
+                          panel.background=
+                            element_rect(fill="#ffffff", colour="#ffffff"), 
+                          axis.line=element_line(color="#bbbbbb", size=0.5),
+                          panel.grid.minor=element_line(color="#dddddd"), 
+                          panel.grid.major=element_line(color="#dddddd"), 
+                          plot.margin=margin(20,12,12,30))
 
- # ---------- LOAD DATA ---------- 
+
+# ---------- LOAD DATA ---------- 
 # # TO LOAD DATA FROM RAW DATA FILE
 # dat.eprime <- read_delim(
 #   file="../../../03-data/chapter-3-study-2-raw-data-eprime.csv", delim = ";")
@@ -177,6 +189,11 @@ count.best.choice <- table.best %>%
 
 count.best.choice <- spread(count.best.choice, best, count)
 
+# find n per version
+table.n.version <- dat.collect %>%
+  group_by(version) %>%
+  summarise(n=length(unique(id)))
+
 # calculate distribution variables
 # find payoff distributions
 payoff.dist <- dat %>%
@@ -222,87 +239,288 @@ dist.hh <- filter(long.payoff.dist, version == 'hh')
 # #ff101f red
 # #edd83d grey yellow
 
-# plot switches per participant to pdf
+# plot payoff distributions per version
+plot.ll <- ggplot(data=dist.ll, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=0.5) + ylim(0, 100) +
+  labs(title="Point distribution per arm", subtitle="Version: Low Drift/Low Noise",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
+
+plot.lh <- ggplot(data=dist.lh, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=0.5) + ylim(0, 100) +
+  labs(title="Point distribution per arm", subtitle="Version: Low Drift/High Noise",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
+
+plot.hl <- ggplot(data=dist.hl, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=0.5) + ylim(0, 100) +
+  labs(title="Point distribution per arm", subtitle="Version: High Drift/Low Noise",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
+
+plot.hh <- ggplot(data=dist.hh, aes(x=trial, y=points, colour=arm)) +
+  geom_line(size=0.5) + ylim(0, 100) +
+  labs(title="Point distribution per arm", subtitle="Version: High Drift/High Noise",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
+
 # split data per id
 split.dat <- split(dat, dat$id)
 names.dat <- colnames(dat)
 
-#prepare pdf
-pdf("../../results/chapter-3-study-2-switches.pdf")
-
-#plot to pdf
+# plot switches per participant to pdf
+# plot to pdfs to combine w/ acrobat pro
 for (i in 1:length(unique(dat$id))) {
   temp.dat <- data.frame(split.dat[i])
   names(temp.dat) <- names.dat
   if (temp.dat$version[1]=="ll") {
-    print(ggplot(data=dist.ll,
-                 aes(x=trial, y=points, colour=arm)) +
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="#797979",
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
-                    subtitle=paste0("Version ", temp.dat[1,1])) + 
-            xlab("Points earned on trial") + 
-            ylab("Trial number") +
-            scale_color_manual(values=c("#1fc5c3", "#3b8c84", 
-                                        "#ff101f", "#edd83d"))
-    )
+    temp_plot <- ggplot(data=dist.ll, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+                 size=0.3, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-switches-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
   }
   else if (temp.dat$version[1]=="lh") {
-    print(ggplot(data=dist.lh,
-                 aes(x=trial, y=points, colour=arm)) +
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="#797979",
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
-                    subtitle=paste0("Version ", temp.dat[1,1])) + 
-            xlab("Points earned on trial") + 
-            ylab("Trial number") +
-            scale_color_manual(values=c("#1fc5c3", "#3b8c84", 
-                                        "#ff101f", "#edd83d"))
-    )
+    temp_plot <- ggplot(data=dist.lh, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+                 size=0.3, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-switches-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
   }
   else if (temp.dat$version[1]=="hl") {
-    print(ggplot(data=dist.hl,
-                 aes(x=trial, y=points, colour=arm)) +
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="#797979",
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
-                    subtitle=paste0("Version ", temp.dat[1,1])) + 
-            xlab("Points earned on trial") + 
-            ylab("Trial number") +
-            scale_color_manual(values=c("#1fc5c3", "#3b8c84", 
-                                        "#ff101f", "#edd83d"))
-    )
+    temp_plot <- ggplot(data=dist.hl, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+                 size=0.3, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-switches-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
   }
   else {
-    print(ggplot(data=dist.hh,
-                 aes(x=trial, y=points, colour=arm)) +
-            geom_line(size=0.1) + ylim(0, 100) +
-            geom_vline(colour="#797979",
-                       xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-            ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
-                    subtitle=paste0("Version ", temp.dat[1,1])) + 
-            xlab("Points earned on trial") + 
-            ylab("Trial number") +
-            scale_color_manual(values=c("#1fc5c3", "#3b8c84", 
-                                        "#ff101f", "#edd83d"))
-    )
+    temp_plot <- ggplot(data=dist.hh, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+                 size=0.3, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-switches-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
   }
 }
-dev.off()
 
+# density plot for switches per version
+ggplot(dat.collect, aes(x=n.switches, fill=version)) +
+  geom_density(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", labels = c("High drift/High noise", 
+                                                   "High drift/Low noise", 
+                                                   "Low drift/High noise", 
+                                                   "Low drift/Low noise"))
 
-print(ggplot(data=dist.ll,
-             aes(x=trial, y=points, colour=arm)) +
-        geom_line(size=0.1) + ylim(0, 100) +
-        geom_vline(colour="#797979",
-                   xintercept=temp.dat$trial[temp.dat$switch==1], size=0.1) +
-        ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
-                subtitle=paste0("Version ", temp.dat[1,1])) + 
-        xlab("Points earned on trial") + 
-        ylab("Trial number") +
-        scale_color_manual(values=c("#1fc5c3", "#3b8c84", 
-                                    "#ff101f", "#edd83d"))
-)
+# plot best choice or not per participant to pdf
+# separate pdfs to be combined in acrobat pro
+for (i in 1:length(unique(dat$id))) {
+  temp.dat <- data.frame(split.dat[i])
+  names(temp.dat) <- names.dat
+  if (temp.dat$version[1]=="ll") {
+    temp_plot <- ggplot(data=dist.ll, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+                 size=0.1, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
+      labs(caption="vertical lines indicate arm chosen was best arm")
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-best.best-chosen-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+  }
+  else if (temp.dat$version[1]=="lh") {
+    temp_plot <- ggplot(data=dist.lh, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+                 size=0.1, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
+      labs(caption="vertical lines indicate arm chosen was best arm")
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-best.best-chosen-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+  }
+  else if (temp.dat$version[1]=="hl") {
+    temp_plot <- ggplot(data=dist.hl, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+                 size=0.1, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
+      labs(caption="vertical lines indicate arm chosen was best arm")
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-best.best-chosen-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+  }
+  else {
+    temp_plot <- ggplot(data=dist.hh, aes(x=trial, y=points, colour=arm)) +
+      geom_line(size=0.1) + ylim(0, 100) +
+      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+                 size=0.1, alpha=0.5) +
+      ggtitle(label=paste0("Participant ", temp.dat[1,2]), 
+              subtitle=paste0("Version ", temp.dat[1,1])) + 
+      xlab("Trial number") + 
+      ylab("Points earned on trial") +
+      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
+      labs(caption="vertical lines indicate arm chosen was best arm")
+    ggsave(temp_plot, 
+           file=paste0("../../results/chapter-3-study-2-best.best-chosen-", i,".pdf"), 
+           width = 21, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+  }
+}
+
+# density plots for choosing best arm per version
+ggplot(dat.collect, aes(x=p.correct.arm, fill=version)) +
+  geom_density(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", labels = c("High drift/High noise", 
+                                                   "High drift/Low noise", 
+                                                   "Low drift/High noise", 
+                                                   "Low drift/Low noise"))
+
+### violin plots ###
+# number of switches
+switch.violin <- dat.collect %>%
+  ggplot(aes(x=version, y=n.switches, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  theme(legend.position="none") +
+  labs(title="Number of switches per version",
+       y="Number of switches over trials", x="Version", color="Version") +
+  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d"))
+# ggplotly(switch.violin)
+
+# number of clusters
+clust.violin <- dat.collect %>%
+  ggplot(aes(x=version, y=cluster.size, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  theme(legend.position="none") +
+  labs(title="Average cluster size per version",
+       y="Average cluster size over trials", x="Version", color="Version") +
+  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d"))
+# ggplotly(clust.violin)
+
+# performance in total payoff
+perf.violin <- dat.collect %>%
+  ggplot(aes(x=version, y=performance, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  theme(legend.position="none") +
+  labs(title="Performance in points per version",
+       y="Total amount of points gained", x="Version", color="Version") +
+  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d"))
+# ggplotly(perf.violin)
+
+# performance in best arm chosen
+perf.arm.violin <-  dat.collect %>%
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.5) +
+  theme(legend.position="none") +
+  labs(title="Performance proportion best arm per version",
+       y="Proportion best arm chosen", x="Version", color="Version") +
+  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d"))
+# ggplotly(perf.arm.violin)
+
+grid.arrange(switch.violin, clust.violin, perf.violin, perf.arm.violin, nrow=4)
+
+# ---------- ANALYSES ---------- 
+
+# n.switches on drift * noise
+dat.collect %>%
+  group_by(drift, noise) %>%
+  summarise(mean=mean(n.switches), 
+            stdev=sd(n.switches), 
+            median=median(n.switches))
+
+dat.collect %>%
+  ggplot(aes(x=drift, y=n.switches, fill=noise)) +
+  geom_boxplot()
+
+outliers <- dat.collect %>%
+  group_by(drift, noise) %>%
+  identify_outliers(n.switches)
+
+resmod <- lm(n.switches ~ version, data = dat.collect)
+qqPlot(residuals(resmod))
+shapiro_test(residuals(resmod))
+dat.collect %>%
+  group_by(drift, noise) %>%
+  shapiro_test(n.switches)
+plot(resmod)
+
+model = lm(n.switches ~ drift + noise + drift:noise,
+           data=dat.collect)
+Anova(model, type="III")
+
+raov(n.switches ~ drift + noise + drift:noise,
+   data=dat.collect)
+
+# p.correct.arm on drift * noise
+
+dat.collect %>%
+  group_by(drift, noise) %>%
+  summarise(mean=mean(p.correct.arm), 
+            stdev=sd(p.correct.arm), 
+            median=median(p.correct.arm))
+
+dat.collect %>%
+  ggplot(aes(x=drift, y=p.correct.arm, fill=noise)) +
+  geom_boxplot()
+
+outliers <- dat.collect %>%
+  group_by(drift, noise) %>%
+  identify_outliers(p.correct.arm)
+
+resmod <- lm(p.correct.arm ~ version, data = dat.collect)
+qqPlot(residuals(resmod))
+shapiro_test(residuals(resmod))
+dat.collect %>%
+  group_by(drift, noise) %>%
+  shapiro_test(p.correct.arm)
+plot(resmod)
+leveneTest(y=dat.collect$p.correct.arm, group=dat.collect$version, center=median)
+
+model = lm(p.correct.arm ~ drift + noise + drift:noise,
+           data=dat.collect)
+Anova(model, type="III")
+
+raov(p.correct.arm ~ drift + noise + drift:noise,
+     data=dat.collect)

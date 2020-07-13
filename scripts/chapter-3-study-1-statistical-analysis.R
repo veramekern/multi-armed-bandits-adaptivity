@@ -537,8 +537,6 @@ grid.arrange(switch.violin.100, clust.violin.100, perf.violin.100,
 # ---------- ANALYSES ---------- 
 # mean differences between versions
 
-names(dat.collect)
-
 # MANOVA
 # assumptions
 # normally distributed errors
