@@ -1,4 +1,5 @@
 chapter-3-up-to-date-presentation-markdown.R
-chapter-3-up-to-date-presentation-markdown.Rmd
-chapter-3-up-to-date-presentation-markdown.tex
-chapter-3-up-to-date-presentation-markdown.html
+*.Rmd
+*.tex
+*.html
+*.md
