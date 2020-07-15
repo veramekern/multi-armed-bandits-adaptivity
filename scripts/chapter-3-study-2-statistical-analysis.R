@@ -19,7 +19,7 @@ ipak <- function(pkg){
 }
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
               "ggthemes", "psych", "biotools", "MASS", "lattice", "GGally", 
-              "extrafont", "car", "Rfit")
+              "extrafont", "car", "Rfit", "rmarkdown", "tinytex")
 ipak(packages)
 font_import()
 loadfonts(device = "win")
