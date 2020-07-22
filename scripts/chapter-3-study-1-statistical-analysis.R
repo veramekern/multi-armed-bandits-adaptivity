@@ -21,14 +21,29 @@ loadfonts(device = "win")
 windowsFonts()
 
 # set default ggplot title to be adjusted to center
-theme_update(plot.title=element_text(hjust = 0.5, size=12, face="plain", 
-                                     family="Gill Sans Nova Light"),
-             axis.title=element_text(face="plain", size=10,
-                                     family="Gill Sans Nova Light"), 
-             strip.background=element_rect(fill="#f9f9f9", ),
-             axis.text=element_text(color="#bbbbbb"), 
-             panel.background=element_rect(fill="#ffffff"), 
-             panel.grid.minor=element_line(color="#dddddd"))
+gill.sans <- theme_update(plot.title=
+                            element_text(hjust = 0.5, vjust=3, size=14, 
+                                         family="Gill Sans Nova"),
+                          plot.subtitle=
+                            element_text(hjust=0.5, vjust=3, size=12, 
+                                         family="Gill Sans Nova Light"),
+                          plot.caption=
+                            element_text(hjust=0, size=12, color="#bbbbbb",
+                                         family="Gill Sans Nova Light", vjust=-1), 
+                          axis.title=element_text(face="plain", size=12,
+                                                  family="Gill Sans Nova Light"), 
+                          axis.title.x=element_text(vjust=0),
+                          strip.background=element_rect(fill="#f9f9f9"),
+                          axis.text=element_text(color="#bbbbbb"), 
+                          legend.text=
+                            element_text(size=12, family="Gill Sans Nova Light"),
+                          panel.background=
+                            element_rect(fill="#ffffff", colour="#ffffff"), 
+                          axis.line=element_line(color="#bbbbbb", size=0.5),
+                          panel.grid.minor=element_line(color="#dddddd"), 
+                          panel.grid.major=element_line(color="#dddddd"), 
+                          plot.margin=margin(20,12,12,30))
+
 
 
 # ---------- LOAD DATA ---------- 
@@ -114,6 +129,11 @@ dat$best.possible <- max.col(dat[,8:11])
 dat <- dat %>%
   mutate(best.chosen = ifelse(best.possible == choice, 1, 0))
 
+# find n best arm switch
+dat <- dat %>%
+  mutate(best.switched = ifelse(best.possible != lag(best.possible), 1, 0))
+dat$best.switched <- ifelse(is.na(dat$best.switched)==T, 0, dat$best.switched)
+
 # find summary data per participant
 dat.collect <- dat %>%
   group_by(id, version) %>%
@@ -129,7 +149,8 @@ dat.collect <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched))
 
 dat.collect.150 <- dat %>%
   filter(trial > 50) %>%
@@ -146,7 +167,8 @@ dat.collect.150 <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched))
 
 dat.collect.100 <- dat %>%
   filter(trial > 100) %>%
@@ -163,7 +185,9 @@ dat.collect.100 <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters)
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched))
+
 dat.collect.100$cluster.size <- ifelse(dat.collect.100$cluster.size==Inf, 100, 
                                        dat.collect.100$cluster.size)
 
@@ -171,12 +195,12 @@ dat.collect.100$cluster.size <- ifelse(dat.collect.100$cluster.size==Inf, 100,
 table.best <- dat %>%
   group_by(version, trial) %>%
   summarise(best = mean(best.possible))
-split.table.best <- split(x=table.best, f=table.best$version)
+count.best.choice <- table.best %>%
+  group_by(version, best) %>%
+  summarise(count=n())
 
-dist.best.a <- c(79, 0, 70, 51)
-dist.best.b <- c(47, 120, 25, 8)
-
-rm(table.best, split.table.best)
+count.best.choice <- spread(count.best.choice, best, count)
+count.best.choice[is.na(count.best.choice)] <- 0
 
 # show distribution choice pp
 n.chose.1 <- dat %>%
@@ -210,11 +234,14 @@ dat.dist.arms <- full_join(dat.dist.arms, n.chose.4, by="id")
 
 names(dat.dist.arms) <- c("id", "observed.1", "observed.2", "observed.3", 
                           "observed.4")
-version <- select(dat.collect, id, version)
+version <- dplyr::select(dat.collect, id, version)
 dat.dist.arms <- full_join(version, dat.dist.arms, by="id")
 rm(n.chose.1, n.chose.2, n.chose.3, n.chose.4, version)
 
 # add expected distribution pp
+dist.best.a <- as.list(count.best.choice[1,2:5])
+dist.best.b <- as.list(count.best.choice[2,2:5])
+
 dat.expected <- dat.dist.arms %>%
   summarise(case_when(version=="a" ~ dist.best.a, 
                       version=="b" ~ dist.best.b)) 
@@ -234,7 +261,7 @@ r.1 <- r.2 <- r.3 <- r.4 <- rep(50, length(unique(dat$id)))
 dat.unif.expected <- data.frame(unif.1=r.1, unif.2=r.2, unif.3=r.3, unif.4=r.4)
 dat.dist.arms <- cbind(dat.dist.arms, dat.unif.expected)
 dat.collect <- left_join(dat.collect, dat.dist.arms, by="id")
-dat.collect <- select(dat.collect, -version.y)
+dat.collect <- dplyr::select(dat.collect, -version.y)
 names(dat.collect)[2] <- 'version'
 rm(r.1, r.2, r.3, r.4, dat.unif.expected)
 
@@ -403,16 +430,18 @@ dat.collect %>%
 ### descriptive plots full data ###
 # line plots payoff distributions
 plot.a <- ggplot(data=dist.a, aes(x=trial, y=points, colour=arm)) +
-  geom_line(size=1) + ylim(0, 100) +
-  labs(y="Payoff", x="Trial", fill="") +
-  theme_calc() +
-  scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
+  geom_line(size=0.5) + ylim(0, 100)  +
+  labs(title="Point distribution per arm", subtitle="Version A",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
 
 plot.b <- ggplot(data=dist.b, aes(x=trial, y=points, colour=arm)) +
-  geom_line(size=1) + ylim(0, 100) +
-  labs(y="Payoff", x="Trial", fill="") +
-  theme_calc() +
-  scale_color_manual(values=c("#e24068", "#fa6c0c", "#509E75", "#508F9E"))
+  geom_line(size=0.5) + ylim(0, 100)  +
+  labs(title="Point distribution per arm", subtitle="Version B",
+       y="Points Earned on Trial", x="Trial Number", color="Arm") +
+  scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"), 
+                     labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
 
 
 ### violin plots ###

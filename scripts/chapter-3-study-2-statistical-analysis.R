@@ -120,6 +120,11 @@ dat$best.possible <- max.col(dat[,5:8])
 dat <- dat %>%
   mutate(best.chosen = ifelse(best.possible == choice, 1, 0))
 
+# find n best arm switch
+dat <- dat %>%
+  mutate(best.switched = ifelse(best.possible != lag(best.possible), 1, 0))
+dat$best.switched <- ifelse(is.na(dat$best.switched)==T, 0, dat$best.switched)
+
 # find summary data per participant
 dat.collect <- dat %>%
   group_by(id, version) %>%
@@ -135,7 +140,8 @@ dat.collect <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters) %>%
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched)) %>%
   mutate(drift = ifelse(version == "ll" | version == "lh", "l", "h"), 
          noise = ifelse(version == "ll" | version == "hl", "l", "h"))
 
@@ -154,7 +160,8 @@ dat.collect.150 <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters) %>%
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched)) %>%
   mutate(drift = ifelse(version == "ll" | version == "lh", "l", "h"), 
          noise = ifelse(version == "ll" | version == "hl", "l", "h"))
 
@@ -173,13 +180,15 @@ dat.collect.100 <- dat %>%
             rt.expl.switch = sum(rt * expl.switch)/n.expl.switches, 
             rt.switch = sum(rt * switch)/n.switches, 
             rt.cluster = sum(rt * cluster)/cluster.sum, 
-            rt.start.cluster = sum(rt * cluster.start)/n.clusters) %>%
+            rt.start.cluster = sum(rt * cluster.start)/n.clusters,
+            n.best.switch = sum(best.switched)) %>%
   mutate(drift = ifelse(version == "ll" | version == "lh", "l", "h"), 
          noise = ifelse(version == "ll" | version == "hl", "l", "h"))
 
 dat.collect.100$cluster.size <- ifelse(dat.collect.100$cluster.size==Inf, 100, 
                                        dat.collect.100$cluster.size)
 
+# calculate how many times arm was best arm per version
 table.best <- dat %>%
   group_by(version, trial) %>%
   summarise(best = first(best.possible))
@@ -188,6 +197,11 @@ count.best.choice <- table.best %>%
   summarise(count=n())
 
 count.best.choice <- spread(count.best.choice, best, count)
+
+# find n best arm switches per version
+table.best.switch.version <- dat.collect %>%
+  group_by(version) %>%
+  summarise(n=mean(n.best.switch))
 
 # find n per version
 table.n.version <- dat.collect %>%
