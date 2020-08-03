@@ -19,7 +19,8 @@ ipak <- function(pkg){
 }
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
               "ggthemes", "psych", "biotools", "MASS", "lattice", "GGally", 
-              "extrafont", "car", "Rfit", "rmarkdown", "tinytex", "zoo")
+              "extrafont", "car", "Rfit", "rmarkdown", "tinytex", "zoo", 
+              "splines")
 ipak(packages)
 font_import()
 loadfonts(device = "win")
@@ -93,44 +94,26 @@ rm(dat.full)
 # calculate clusters
 dat <- dat %>%
   group_by(id) %>%
-  mutate(cluster = ifelse(choice == lag(choice), 1, 0)) %>%
-  mutate(cluster = ifelse(lead(cluster) == 1 & cluster == 0, 1, cluster)) %>%
-  mutate(cluster = ifelse(is.na(cluster) & lead(choice)==choice, 1, cluster)) %>%
-  mutate(cluster = ifelse(is.na(cluster), 0, cluster))
-
-# calculate cluster starts
-dat <- dat %>%
-  group_by(id) %>%
-  mutate(cluster.start = ifelse(cluster == 1 & lag(choice) != choice, 1, 0)) %>%
-  mutate(cluster.start = ifelse(cluster == 1 & is.na(lag(cluster)), 1, 
-                                cluster.start))
-
-# calculate switches
-dat <- dat %>%
-  group_by(id) %>%
-  mutate(switch = ifelse(choice != lag(choice), 1, 0)) %>%
-  mutate(switch = ifelse(is.na(switch), 0, switch))
-
-# calculate exploratory switches
-dat <- dat %>%
-  group_by(id) %>%
-  mutate(expl.switch = ifelse(choice != lag(choice) & 
-                                choice != lag(choice, n=2), 1, 0)) %>%
-  mutate(expl.switch = ifelse(is.na(expl.switch), 0, expl.switch))
-
-# find best choice
-dat$best.possible <- max.col(dat[,7:10])
-dat <- dat %>%
-  mutate(best.chosen = ifelse(best.possible == choice, 1, 0))
-
-# find n best arm switch
-dat <- dat %>%
-  mutate(best.switched = ifelse(best.possible != lag(best.possible), 1, 0))
-dat$best.switched <- ifelse(is.na(dat$best.switched)==T, 0, dat$best.switched)
-
-# add variable to indicate block
-dat <- dat %>%
-  mutate(block.nr = ifelse(between(trial, 1, 100), 1, 
+  mutate(cluster = ifelse(choice == lag(choice), 1, 0), 
+         cluster = ifelse(lead(cluster) == 1 & cluster == 0, 1, cluster), 
+         cluster = ifelse(is.na(cluster) & lead(choice)==choice, 1, cluster), 
+         cluster = ifelse(is.na(cluster), 0, cluster),
+         cluster.start = ifelse(cluster == 1 & lag(choice) != choice, 1, 0),
+         cluster.start = ifelse(cluster == 1 & is.na(lag(cluster)), 1, 
+                                cluster.start), 
+         switch = ifelse(choice != lag(choice), 1, 0), 
+         switch = ifelse(is.na(switch), 0, switch), 
+         expl.switch = ifelse(choice != lag(choice) & 
+                                choice != lag(choice, n=2), 1, 0), 
+         expl.switch = ifelse(is.na(expl.switch), 0, expl.switch), 
+         best.possible = pmax(arm1, arm2, arm3, arm4),
+         best.possible = ifelse(best.possible == arm1, 0, 
+                                ifelse(best.possible == arm2, 1, 
+                                       ifelse(best.possible == arm3, 2, 3))),
+         best.chosen = ifelse(best.possible == choice, 1, 0), 
+         best.switched = ifelse(best.possible != lag(best.possible), 1, 0),
+         best.switched = ifelse(is.na(best.switched)==T, 0, best.switched),
+         block.nr = ifelse(between(trial, 1, 100), 1, 
                            ifelse(between(trial, 101, 200), 2, 
                                   ifelse(between(trial, 201, 300), 3, 4))), 
          block.hl = ifelse((block.nr==1 | block.nr==3) & version=="shl", 1, 
@@ -140,40 +123,30 @@ dat <- dat %>%
                            ifelse((block.nr==2 | block.nr==4) & version=="shl", 1, 
                                   0)), 
          blockhl.nr = ifelse(block.hl==1 & block.nr<3, 1, 
-                              ifelse(block.hl==1 & block.nr>2, 2, 0)), 
+                             ifelse(block.hl==1 & block.nr>2, 2, 0)), 
          block.lh.nr = ifelse(block.lh==1 & block.nr<3, 1, 
-                              ifelse(block.lh==1 & block.nr>2, 2, 0)), 
-         
-         )
-
-# calculate proportion each arm chosen until t
-dat <- dat %>%
+                              ifelse(block.lh==1 & block.nr>2, 2, 0))) %>%
   group_by(id, choice) %>%
   mutate(p.arm1 = ifelse(choice==0, row_number(), NA), 
          p.arm2 = ifelse(choice==1, row_number(), NA), 
          p.arm3 = ifelse(choice==2, row_number(), NA), 
-         p.arm4 = ifelse(choice==3, row_number(), NA)) 
-dat <- dat %>%
+         p.arm4 = ifelse(choice==3, row_number(), NA))%>%
   group_by(id) %>%
   mutate(p.arm1 = na.locf(p.arm1, na.rm=F), 
          p.arm2 = na.locf(p.arm2, na.rm=F), 
          p.arm3 = na.locf(p.arm3, na.rm=F), 
-         p.arm4 = na.locf(p.arm4, na.rm=F))
-dat <- dat %>%
-  group_by(id) %>%
-  mutate(p.arm1 = p.arm1/trial, 
+         p.arm4 = na.locf(p.arm4, na.rm=F), 
+         p.arm1 = p.arm1/trial, 
          p.arm2 = p.arm2/trial, 
          p.arm3 = p.arm3/trial, 
-         p.arm4 = p.arm4/trial)
-dat[is.na(dat)] <- 0
-
-# calculate entropy as -1 * sum(p_i * log2(p_i))
-dat <- dat %>%
-  group_by(id) %>%
-  mutate(entropy = -1 * ((p.arm1 * log2(p.arm1)) + (p.arm2 * log2(p.arm2)) + 
-                          (p.arm3 * log2(p.arm3)) + (p.arm4 * log2(p.arm4))))
-
-dat$entropy[is.nan(dat$entropy)] <- 2
+         p.arm4 = p.arm4/trial, 
+         p.arm1 = ifelse(is.na(p.arm1)==T, 0, p.arm1), 
+         p.arm2 = ifelse(is.na(p.arm2)==T, 0, p.arm2), 
+         p.arm3 = ifelse(is.na(p.arm3)==T, 0, p.arm3), 
+         p.arm4 = ifelse(is.na(p.arm4)==T, 0, p.arm4), 
+         entropy = -1 * ((p.arm1 * log2(p.arm1)) + (p.arm2 * log2(p.arm2)) + 
+                           (p.arm3 * log2(p.arm3)) + (p.arm4 * log2(p.arm4))), 
+         entropy = ifelse(is.nan(entropy)==T, 2, entropy))
 
 # ---------- CALCULATE SUMMARY DATA FOR BEHAVIORAL ANALYSES ALL TRIALS ---------- 
 # for all trials, over all blocks
