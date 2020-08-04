@@ -20,7 +20,7 @@ ipak <- function(pkg){
 packages <- c("tidyverse", "plotly", "ggplot2", "gridExtra", "matrixStats", 
               "ggthemes", "psych", "biotools", "MASS", "lattice", "GGally", 
               "extrafont", "car", "Rfit", "rmarkdown", "tinytex", "zoo", 
-              "splines")
+              "grid")
 ipak(packages)
 font_import()
 loadfonts(device = "win")
@@ -122,7 +122,7 @@ dat <- dat %>%
          block.lh = ifelse((block.nr==1 | block.nr==3) & version=="slh", 1, 
                            ifelse((block.nr==2 | block.nr==4) & version=="shl", 1, 
                                   0)), 
-         blockhl.nr = ifelse(block.hl==1 & block.nr<3, 1, 
+         block.hl.nr = ifelse(block.hl==1 & block.nr<3, 1, 
                              ifelse(block.hl==1 & block.nr>2, 2, 0)), 
          block.lh.nr = ifelse(block.lh==1 & block.nr<3, 1, 
                               ifelse(block.lh==1 & block.nr>2, 2, 0))) %>%
@@ -371,7 +371,7 @@ dat.collect.hl.second.trunc <- dat.trunc %>%
             rt.start.cluster = sum(rt * cluster.start)/n.clusters,
             n.best.switch = sum(best.switched)) 
 
-# for the first low drift/high noise blocks 
+# for the low drift/high noise blocks 
 dat.collect.lh.trunc <- dat.trunc %>%
   filter(block.lh==1) %>%
   group_by(id, version) %>%
@@ -485,7 +485,6 @@ long.payoff.dist <- payoff.dist %>% gather(arm, points, arm1:arm4)
 dist.slh <- filter(long.payoff.dist, version == 'slh')
 dist.shl <- filter(long.payoff.dist, version == 'shl')
 
-
 # coolors
 # #797979 silver gray
 # #1fc5c3 blue green
@@ -512,44 +511,44 @@ plot.shl <- ggplot(data=dist.shl, aes(x=trial, y=points, colour=arm)) +
                      labels=c("Arm 1", "Arm 2", "Arm 3", "Arm 4"))
 
 # ---------- VISUAL EXPLORATION PDFs ---------- 
-# split data per id
-split.dat <- split(dat, dat$id)
-names.dat <- colnames(dat)
-
-# plot switches per participant to pdf
-# plot to pdfs to combine w/ acrobat pro
-for (i in 1:length(unique(dat$id))) {
-  temp.dat <- data.frame(split.dat[i])
-  names(temp.dat) <- names.dat
-  if (temp.dat$version[1]=="slh") {
-    temp_plot <- ggplot(data=dist.slh, aes(x=trial, y=points, colour=arm)) +
-      geom_line(size=0.1) + ylim(0, 100) +
-      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
-                 size=0.3, alpha=0.5) +
-      ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
-              subtitle=paste0("Version ", temp.dat[1,1])) + 
-      xlab("Trial number") + 
-      ylab("Points earned on trial") +
-      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
-    ggsave(temp_plot, 
-           file=paste0("../../results/chapter-3-study-3-switches-", i,".pdf"), 
-           width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
-  }
-  else {
-    temp_plot <- ggplot(data=dist.shl, aes(x=trial, y=points, colour=arm)) +
-      geom_line(size=0.1) + ylim(0, 100) +
-      geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
-                 size=0.3, alpha=0.5) +
-      ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
-              subtitle=paste0("Version ", temp.dat[1,1])) + 
-      xlab("Trial number") + 
-      ylab("Points earned on trial") +
-      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
-    ggsave(temp_plot, 
-           file=paste0("../../results/chapter-3-study-3-switches-", i,".pdf"), 
-           width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
-  }
-}
+# # split data per id
+# split.dat <- split(dat, dat$id)
+# names.dat <- colnames(dat)
+# 
+# # plot switches per participant to pdf
+# # plot to pdfs to combine w/ acrobat pro
+# for (i in 1:length(unique(dat$id))) {
+#   temp.dat <- data.frame(split.dat[i])
+#   names(temp.dat) <- names.dat
+#   if (temp.dat$version[1]=="slh") {
+#     temp_plot <- ggplot(data=dist.slh, aes(x=trial, y=points, colour=arm)) +
+#       geom_line(size=0.1) + ylim(0, 100) +
+#       geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+#                  size=0.3, alpha=0.5) +
+#       ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
+#               subtitle=paste0("Version ", temp.dat[1,1])) + 
+#       xlab("Trial number") + 
+#       ylab("Points earned on trial") +
+#       scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+#     ggsave(temp_plot, 
+#            file=paste0("../../results/chapter-3-study-3-switches-", i,".pdf"), 
+#            width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+#   }
+#   else {
+#     temp_plot <- ggplot(data=dist.shl, aes(x=trial, y=points, colour=arm)) +
+#       geom_line(size=0.1) + ylim(0, 100) +
+#       geom_vline(colour="#FFC2B4", xintercept=temp.dat$trial[temp.dat$switch==1], 
+#                  size=0.3, alpha=0.5) +
+#       ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
+#               subtitle=paste0("Version ", temp.dat[1,1])) + 
+#       xlab("Trial number") + 
+#       ylab("Points earned on trial") +
+#       scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d"))
+#     ggsave(temp_plot, 
+#            file=paste0("../../results/chapter-3-study-3-switches-", i,".pdf"), 
+#            width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+#   }
+# }
 
 # density plot for switches per version
 ggplot(dat.collect, aes(x=n.switches, fill=version)) +
@@ -557,218 +556,252 @@ ggplot(dat.collect, aes(x=n.switches, fill=version)) +
   scale_fill_discrete(name = "Version", labels = c("Start high drift/\nlow noise", 
                                                    "Start low drift/\nhigh noise"))
 
-# plot best choice or not per participant to pdf
-# separate pdfs to be combined in acrobat pro
-for (i in 1:length(unique(dat$id))) {
-  temp.dat <- data.frame(split.dat[i])
-  names(temp.dat) <- names.dat
-  if (temp.dat$version[1]=="slh") {
-    temp_plot <- ggplot(data=dist.slh, aes(x=trial, y=points, colour=arm)) +
-      geom_line(size=0.1) + ylim(0, 100) +
-      geom_vline(colour="#FFC2B4", 
-                 xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
-                 size=0.1, alpha=0.5) + 
-      ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
-              subtitle=paste0("Version ", temp.dat[1,1])) + 
-      xlab("Trial number") + 
-      ylab("Points earned on trial") +
-      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) + 
-      labs(caption="vertical lines indicate arm chosen was best arm")
-    ggsave(temp_plot, 
-           file=paste0("../../results/chapter-3-study-3-best.best-chosen-", 
-                       i,".pdf"), 
-           width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
-  }
-  else {
-    temp_plot <- ggplot(data=dist.shl, aes(x=trial, y=points, colour=arm)) +
-      geom_line(size=0.1) + ylim(0, 100) +
-      geom_vline(colour="#FFC2B4", 
-                 xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
-                 size=0.1, alpha=0.5) +
-      ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
-              subtitle=paste0("Version ", temp.dat[1,1])) + 
-      xlab("Trial number") + 
-      ylab("Points earned on trial") +
-      scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
-      labs(caption="vertical lines indicate arm chosen was best arm")
-    ggsave(temp_plot, 
-           file=paste0("../../results/chapter-3-study-3-best.best-chosen-", 
-                       i,".pdf"), 
-           width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
-  }
-}
+# # plot best choice or not per participant to pdf
+# # separate pdfs to be combined in acrobat pro
+# for (i in 1:length(unique(dat$id))) {
+#   temp.dat <- data.frame(split.dat[i])
+#   names(temp.dat) <- names.dat
+#   if (temp.dat$version[1]=="slh") {
+#     temp_plot <- ggplot(data=dist.slh, aes(x=trial, y=points, colour=arm)) +
+#       geom_line(size=0.1) + ylim(0, 100) +
+#       geom_vline(colour="#FFC2B4", 
+#                  xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+#                  size=0.1, alpha=0.5) + 
+#       ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
+#               subtitle=paste0("Version ", temp.dat[1,1])) + 
+#       xlab("Trial number") + 
+#       ylab("Points earned on trial") +
+#       scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) + 
+#       labs(caption="vertical lines indicate arm chosen was best arm")
+#     ggsave(temp_plot, 
+#            file=paste0("../../results/chapter-3-study-3-best.best-chosen-", 
+#                        i,".pdf"), 
+#            width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+#   }
+#   else {
+#     temp_plot <- ggplot(data=dist.shl, aes(x=trial, y=points, colour=arm)) +
+#       geom_line(size=0.1) + ylim(0, 100) +
+#       geom_vline(colour="#FFC2B4", 
+#                  xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+#                  size=0.1, alpha=0.5) +
+#       ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
+#               subtitle=paste0("Version ", temp.dat[1,1])) + 
+#       xlab("Trial number") + 
+#       ylab("Points earned on trial") +
+#       scale_color_manual(values=c("#1fc5c3", "#3b8c84", "#ff101f", "#edd83d")) +
+#       labs(caption="vertical lines indicate arm chosen was best arm")
+#     ggsave(temp_plot, 
+#            file=paste0("../../results/chapter-3-study-3-best.best-chosen-", 
+#                        i,".pdf"), 
+#            width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+#   }
+# }
+# 
+# # entropy per participant
+# for (i in 1:length(unique(dat$id))) {
+#   temp.dat <- data.frame(split.dat[i])
+#   names(temp.dat) <- names.dat
+#   temp_plot <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
+#     geom_line(colour="#1fc5c3") + 
+#     geom_vline(colour="#999999", 
+#                xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
+#                size=1, alpha=0.5) +
+#     geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400), 
+#                size=1, alpha=0.5) +
+#     ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
+#             subtitle=paste0("Version ", temp.dat[1,1])) + 
+#     xlab("Trial number") + 
+#     ylab("Entropy") +
+#     labs(caption="vertical gray lines indicate arm chosen was best arm\n
+#          vertical red lines indicate change of environment")
+#   ggsave(temp_plot, 
+#          file=paste0("../../results/chapter-3-study-3-entropy-", i,".pdf"), 
+#          width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
+# }
 
-# entropy per participant
-for (i in 1:length(unique(dat$id))) {
-  temp.dat <- data.frame(split.dat[i])
-  names(temp.dat) <- names.dat
-  temp_plot <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
-    geom_line(colour="#1fc5c3") + 
-    geom_vline(colour="#999999", 
-               xintercept=temp.dat$trial[temp.dat$best.chosen==1], 
-               size=1, alpha=0.5) +
-    geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400), 
-               size=1, alpha=0.5) +
-    ggtitle(label=paste0("Participant ", temp.dat[1,3]), 
-            subtitle=paste0("Version ", temp.dat[1,1])) + 
-    xlab("Trial number") + 
-    ylab("Entropy") +
-    labs(caption="vertical gray lines indicate arm chosen was best arm\n
-         vertical red lines indicate change of environment")
-  ggsave(temp_plot, 
-         file=paste0("../../results/chapter-3-study-3-entropy-", i,".pdf"), 
-         width = 42, height = 21, units = "cm", dpi=150, device=cairo_pdf)
-}
+
+temp.dat <- data.frame(split.dat[17])
+names(temp.dat) <- names.dat
+plot_19 <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
+  geom_line(colour="#1fc5c3") +
+  geom_vline(colour="#999999",
+             xintercept=temp.dat$trial[temp.dat$best.chosen==1],
+             size=0.5, alpha=0.5) +
+  geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400),
+             size=1, alpha=0.5) +
+  theme(axis.title.y=element_blank(), axis.title.x=element_blank())
+
+temp.dat <- data.frame(split.dat[36])
+names(temp.dat) <- names.dat
+plot_42 <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
+  geom_line(colour="#1fc5c3") +
+  geom_vline(colour="#999999",
+             xintercept=temp.dat$trial[temp.dat$best.chosen==1],
+             size=0.5, alpha=0.5) +
+  geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400),
+             size=1, alpha=0.5) +
+  theme(axis.title.y=element_blank(), axis.title.x=element_blank())
+
+temp.dat <- data.frame(split.dat[40])
+names(temp.dat) <- names.dat
+plot_48 <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
+  geom_line(colour="#1fc5c3") +
+  geom_vline(colour="#999999",
+             xintercept=temp.dat$trial[temp.dat$best.chosen==1],
+             size=0.5, alpha=0.5) +
+  geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400),
+             size=1, alpha=0.5) +
+  theme(axis.title.y=element_blank(), axis.title.x=element_blank())
+
+temp.dat <- data.frame(split.dat[54])
+names(temp.dat) <- names.dat
+plot_66 <- ggplot(data=temp.dat, aes(x=trial, y=entropy)) +
+  geom_line(colour="#1fc5c3") +
+  geom_vline(colour="#999999",
+             xintercept=temp.dat$trial[temp.dat$best.chosen==1],
+             size=0.5, alpha=0.5) +
+  geom_vline(colour="#FFC2B4", xintercept=c(100, 200, 300, 400),
+             size=1, alpha=0.5) +
+  theme(axis.title.y=element_blank())
+
+grid.arrange(plot_19, plot_42, plot_48, plot_66, ncol=1, 
+             left=textGrob("Entropy", 
+                           gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                   fontsize=12), rot=90, vjust=2))
 
 # ---------- VISUAL EXPLORATION PLOTS FULL TRIAL BLOCKS ---------- 
-# density plots for choosing best arm per version per version per environment
-best.all <- ggplot(dat.collect, aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm throughout task", 
-       subtitle="both environments, four blocks combined") + 
-  xlim(0.0, 0.6)
-
-best.hl <- ggplot(dat.collect.hl, aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in high drift/low noise", 
-       subtitle="both high drift/low noise blocks combined") + 
-  xlim(0.0, 0.6)
-
-best.lh <- ggplot(dat.collect.lh, aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in low drift/high noise", 
-       subtitle="both low drift/high noise blocks combined") + 
-  xlim(0.0, 0.6)
-
-grid.arrange(best.all, best.hl, best.lh)
-
-# density plots for choosing best arm per version per version per environment
-# second blocks only
-best.hl.first <- ggplot(dat.collect.hl.first, 
-                        aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in high drift/low noise", 
-       subtitle="first high drift/low noise block only") + 
-  xlim(0.0, 0.6) +
-  ylim(0, 8)
-
-best.lh.first <- ggplot(dat.collect.lh.first, 
-                        aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in low drift/high noise", 
-       subtitle="first low drift/high noise block only") + 
-  xlim(0.0, 0.6) +
-  ylim(0, 8)
-
-# density plots for choosing best arm per version per version per environment
-# second blocks only
-best.hl.second <- ggplot(dat.collect.hl.second, 
-                         aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in high drift/low noise", 
-       subtitle="second high drift/low noise block only") + 
-  xlim(0.0, 0.6) +
-  ylim(0, 8)
-
-best.lh.second <- ggplot(dat.collect.lh.second, 
-                         aes(x=p.correct.arm, fill=version)) +
-  geom_density(alpha=0.6) + 
-  scale_fill_discrete(name = "Version", 
-                      labels = c("Start high drift/\nlow noise", 
-                                 "Start low drift/\nhigh noise")) +
-  labs(title="proportion best arm in low drift/high noise", 
-       subtitle="second low drift/high noise block only") + 
-  xlim(0.0, 0.6) +
-  ylim(0, 8)
-
-grid.arrange(best.hl.first, best.hl.second, best.lh.first, best.lh.second, ncol=2)
-
 ### violin plots ###
+# PERFORMANCE
+best.all <- dat.collect %>% 
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="both environments | all four blocks combined") +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank())
+
+best.lh <- dat.collect.lh %>% 
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="only low drift/high noise blocks")+
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank())
+
+best.hl <- dat.collect.hl %>% 
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(draw_quantiles=T, alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="only high drift/low noise blocks")+
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+
+grid.arrange(best.all, best.lh, best.hl,
+             top=textGrob("proportion best arm chosen",
+                          gp=gpar(fontfamily="Gill Sans Nova", fontsize=14)), 
+             left=textGrob("proportion best arm chosen", 
+                           gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                   fontsize=12), rot=90, vjust=2), 
+             bottom=textGrob("version", 
+                             gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                     fontsize=12), rot=0, vjust=-1))
+
+# violin plots for choosing best arm per version per environment
+# first blocks only
+best.hl.first <- dat.collect.hl.first %>%  
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="first high drift/low noise block only") +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank())
+
+best.lh.first <- dat.collect.lh.first %>%  
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="first low drift/high noise block only") +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank())
+
+# violin plots for choosing best arm per version per version per environment
+# second blocks only
+best.hl.second <- dat.collect.hl.second %>%  
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="second high drift/low noise block only") +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank())
+
+best.lh.second <- dat.collect.lh.second %>%  
+  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
+  geom_violin(alpha=0.6) + 
+  scale_fill_discrete(name = "Version", 
+                      labels = c("Start high drift/\nlow noise", 
+                                 "Start low drift/\nhigh noise")) +
+  labs(subtitle="second low drift/high noise block only") +
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+
+grid.arrange(best.hl.first, best.hl.second, best.lh.first, best.lh.second, 
+             ncol=2, top=textGrob("proportion best arm chosen", 
+                                  gp=gpar(fontfamily="Gill Sans Nova", 
+                                          fontsize=14)), 
+             left=textGrob("proportion best arm chosen", 
+                          gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                  fontsize=12), rot=90, vjust=2), 
+             bottom=textGrob("version", 
+                           gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                   fontsize=12), rot=0, vjust=-1))
+
 # SWITCHES
 # number of switches
 switch.violin <- dat.collect %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Number of switches per version",
-       y="Number of switches over trials", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
+  geom_violin(alpha=0.6) +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank()) +
+  labs(subtitle="all four blocks combined", color="Version") +
   ylim(0, 350)
 
 # number of switches hl blocks
 switch.violin.hl <- dat.collect.hl %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Number of switches per version", 
-       subtitle="high drift/low noise blocks",
-       y="Number of switches over trials", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
+  geom_violin(alpha=0.6) +
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
+  labs(subtitle="high drift/low noise blocks", color="Version") +
   ylim(0, 350)
 
 # number of switches lh blocks
 switch.violin.lh <- dat.collect.lh %>%
   ggplot(aes(x=version, y=n.switches, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Number of switches per version", 
-       subtitle="low drift/high noise blocks",
-       y="Number of switches over trials", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
+  geom_violin(alpha=0.6) +
+  theme(legend.position="none", axis.title.x=element_blank(), 
+        axis.title.y=element_blank()) +
+  labs(subtitle="low drift/high noise blocks", color="Version") +
   ylim(0, 350)
 
-grid.arrange(switch.violin, switch.violin.lh, switch.violin.hl, ncol=3)
-
-# PERFORMANCE
-# performance in best arm chosen
-perf.arm.violin <-  dat.collect %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-perf.arm.violin.lh <-  dat.collect.lh %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       subtitle="low drift/high noise blocks",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-perf.arm.violin.hl <-  dat.collect.hl %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       subtitle="high drift/low noise blocks",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-grid.arrange(perf.arm.violin, perf.arm.violin.lh, perf.arm.violin.hl, ncol=3)
+grid.arrange(switch.violin, switch.violin.lh, switch.violin.hl, ncol=3, 
+             top=textGrob("number of switches per version", 
+                                  gp=gpar(fontfamily="Gill Sans Nova", 
+                                          fontsize=14)), 
+             left=textGrob("number of switches over 400 trials", 
+                           gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                   fontsize=12), rot=90, vjust=2), 
+             bottom=textGrob("version", 
+                             gp=gpar(fontfamily="Gill Sans Nova Light", 
+                                     fontsize=12), rot=0, vjust=-1))
 
 # ---------- VISUAL EXPLORATION PLOTS TRUNCATED BLOCKS ---------- 
 # density plots for choosing best arm per version per version per environment
@@ -779,7 +812,7 @@ best.all.trunc <- ggplot(dat.collect.trunc, aes(x=p.correct.arm, fill=version)) 
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm throughout task", 
        subtitle="both environments, four blocks combined") + 
-  xlim(0.0, 0.6)
+  xlim(0.0, 0.9)
 
 best.hl.trunc <- ggplot(dat.collect.hl.trunc, aes(x=p.correct.arm, fill=version)) +
   geom_density(alpha=0.6) + 
@@ -788,7 +821,7 @@ best.hl.trunc <- ggplot(dat.collect.hl.trunc, aes(x=p.correct.arm, fill=version)
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in high drift/low noise", 
        subtitle="both high drift/low noise blocks combined") + 
-  xlim(0.0, 0.6)
+  xlim(0.0, 0.9)
 
 best.lh.trunc <- ggplot(dat.collect.lh.trunc, aes(x=p.correct.arm, fill=version)) +
   geom_density(alpha=0.6) + 
@@ -797,7 +830,7 @@ best.lh.trunc <- ggplot(dat.collect.lh.trunc, aes(x=p.correct.arm, fill=version)
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in low drift/high noise", 
        subtitle="both low drift/high noise blocks combined") + 
-  xlim(0.0, 0.6)
+  xlim(0.0, 0.9)
 
 grid.arrange(best.all.trunc, best.hl.trunc, best.lh.trunc)
 
@@ -811,7 +844,7 @@ best.hl.first.trunc <- ggplot(dat.collect.hl.first.trunc,
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in high drift/low noise", 
        subtitle="first high drift/low noise block only") + 
-  xlim(0.0, 0.6) +
+  xlim(0.0, 1) +
   ylim(0, 8)
 
 best.lh.first.trunc <- ggplot(dat.collect.lh.first.trunc, 
@@ -822,7 +855,7 @@ best.lh.first.trunc <- ggplot(dat.collect.lh.first.trunc,
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in low drift/high noise", 
        subtitle="first low drift/high noise block only") + 
-  xlim(0.0, 0.6) +
+  xlim(0.0, 1) +
   ylim(0, 8)
 
 # density plots for choosing best arm per version per version per environment
@@ -835,7 +868,7 @@ best.hl.second.trunc <- ggplot(dat.collect.hl.second.trunc,
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in high drift/low noise", 
        subtitle="second high drift/low noise block only") + 
-  xlim(0.0, 0.6) +
+  xlim(0.0, 1) +
   ylim(0, 8)
 
 best.lh.second.trunc <- ggplot(dat.collect.lh.second.trunc, 
@@ -846,7 +879,7 @@ best.lh.second.trunc <- ggplot(dat.collect.lh.second.trunc,
                                  "Start low drift/\nhigh noise")) +
   labs(title="proportion best arm in low drift/high noise", 
        subtitle="second low drift/high noise block only") + 
-  xlim(0.0, 0.6) +
+  xlim(0.0, 1) +
   ylim(0, 8)
 
 grid.arrange(best.hl.first.trunc, best.hl.second.trunc, 
@@ -889,48 +922,17 @@ switch.violin.lh.trunc <- dat.collect.lh.trunc %>%
 grid.arrange(switch.violin.trunc, switch.violin.lh.trunc, 
              switch.violin.hl.trunc, ncol=3)
 
-# PERFORMANCE
-# performance in best arm chosen
-perf.arm.violin.trunc <-  dat.collect.trunc %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-perf.arm.violin.lh.trunc <-  dat.collect.lh.trunc %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       subtitle="low drift/high noise blocks",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-perf.arm.violin.hl.trunc <-  dat.collect.hl.trunc %>%
-  ggplot(aes(x=version, y=p.correct.arm, fill=version)) +
-  geom_violin(draw_quantiles=T, alpha=0.5) +
-  theme(legend.position="none") +
-  labs(title="Performance proportion best arm per version",
-       subtitle="high drift/low noise blocks",
-       y="Proportion best arm chosen", x="Version", color="Version") +
-  scale_fill_manual(values=c("#1fc5c3", "#ff101f", "#3b8c84", "#edd83d")) +
-  ylim(0, 0.55)
-
-grid.arrange(perf.arm.violin.trunc, perf.arm.violin.lh.trunc, 
-             perf.arm.violin.hl.trunc, ncol=3)
-
 # ---------- ANALYSES ENTROPY ---------- 
 # Entropy higher on exploration than on exploitation
 # (t-test on groups switch vs. non-switch trials)
+t.test(entropy ~ expl.switch, data=dat)
+
 
 # Gradual decrease in entropy
 # (effect of trial on entropy)
-mod.decr.entr <- lm(entropy ~ trial, data=dat)
-summary(mod.decr.entr) 
+mods <- dat %>%
+  group_by(id) %>%
+  summary(lm(entropy ~ trial))
 
 plot.decr.entr <- dat %>%
   filter(version=="shl" & id==2) %>%
@@ -939,4 +941,20 @@ plot.decr.entr <- dat %>%
 
 # Entropy higher in low drift/high noise blocks than high drift/low nosie blocks
 # (t-test l/h blocks vs h/l blocks)
+entropy.collect <- dat %>%
+  group_by(block.hl, id) %>%
+  summarise(entropy = mean(entropy))
+
+entropy.collect.shl <- dat %>%
+  filter(version=="shl") %>%
+  group_by(block.hl, id) %>%
+  summarise(entropy = mean(entropy))
+
+entropy.collect.slh <- dat %>%
+  filter(version=="slh") %>%
+  group_by(block.hl, id) %>%
+  summarise(entropy = mean(entropy))
+
+t.test(entropy ~ block.hl, data=entropy.collect.shl)
+t.test(entropy ~ block.hl, data=entropy.collect.slh)
 
